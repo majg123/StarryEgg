@@ -1,0 +1,87 @@
+﻿using UnityEngine;
+using System.Collections;
+using UnityEngine.UI;
+using System.Threading;
+
+public class WalkCount : MonoBehaviour
+{
+   
+    [SerializeField]
+    private Image content;
+
+    [SerializeField]
+    private Text walkCount_text;
+
+	[SerializeField]
+	private Text GaugeBar_Text;
+
+	private float x;
+	private float y;
+	private float z;
+	private float e;
+
+   
+    
+    // Use this for initialization
+    void Start()
+    {
+        walkCount_text.text = Variables.walkCount.ToString();
+		GaugeBar_Text.text = (Variables.gauge / 216000 * 100).ToString ("N1") + "%";
+        content.fillAmount = Variables.Map(Variables.gauge, 0, 216000, 0, 1);
+    }
+
+   
+    // Update is called once per frame
+    void Update()
+    {
+		getAcceleration();
+		Count();
+        HandleBar();
+    }
+
+
+    void HandleBar()
+    {
+        // 걸음 최대 10000 : 60%, 기본 하루 : 40%
+        // 하루(86400s)에 40%차게 : 216000에 100차게
+        Variables.gauge = Mathf.Clamp(Variables.gauge + Time.deltaTime, 0, 216000);
+        PlayerPrefs.SetFloat("Energy", Variables.gauge);
+        PlayerPrefs.Save();
+        content.fillAmount = Variables.Map(Variables.gauge, 0, 216000, 0, 1);//4일후 full(345600s)
+    }
+   
+    
+	void getAcceleration()
+	{
+		x = Input.acceleration.x;
+		y = Input.acceleration.y;
+		z = Input.acceleration.z;
+		e = Mathf.Sqrt(Mathf.Pow(x, 2) + Mathf.Pow(y, 2) + Mathf.Pow(z, 2));
+	}
+    
+
+	void Count()
+	{
+		if (Variables.threshold(Variables.n) < e)
+		{
+			if (Variables.n > 7)
+			{
+				System.Array.Resize(ref Variables.E, Variables.E.Length + 1);
+			}
+            Variables.E[Variables.n] = e;
+			Variables.walkCount++;
+			// 5000보에 30%, 64800/216000 -> 1보에 0.006%참, 12.96/216000
+			Variables.gauge += Variables.walkCount * 12.96f;
+
+			PlayerPrefs.SetInt ("walkCount", Variables.walkCount);
+			PlayerPrefs.SetFloat ("Energy", Variables.gauge);
+			PlayerPrefs.Save ();
+
+			walkCount_text.text = Variables.walkCount.ToString();
+			GaugeBar_Text.text = (Variables.gauge / 216000 * 100).ToString("N1") + "%";;
+            Variables.maxpd = Variables.max(Variables.maxpd, Variables.E[Variables.n]);
+            Variables.n++;
+			Thread.Sleep(300);   // 300ms이하는 카운트 안하게!!
+		}
+	}
+}
